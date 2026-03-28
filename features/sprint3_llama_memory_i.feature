@@ -5,8 +5,9 @@ Feature: Sprint 3 — llama_memory_i Implementation
 
   Background:
     Given Sprint 2 artifacts are available: ggml ops, Metal shader, pybind11 bindings
-    And llama_memory_i abstract interface exists in llama.cpp (PR #12181)
+    And llama_memory_i abstract interface exists in mickeyperlstein/llama.cpp fork (upstream PR #12181)
     And existing concrete implementations are reference: llama_kv_cache, llama_memory_recurrent
+    And all implementation work targets mickeyperlstein/llama.cpp for upstream PR to ggml-org/llama.cpp
 
   Scenario: TurboQuantKVCache class implements llama_memory_i
     Given the llama_memory_i interface contract
