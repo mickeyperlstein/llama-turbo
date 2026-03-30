@@ -71,6 +71,22 @@ Feature: Sprint 0 — DevOps & CI Foundation
     And merge conflicts are flagged for manual resolution
     And CI must pass on the sync PR before merge
 
+  Scenario: Docker build for local C++ development
+    Given Docker is installed on the developer machine
+    When docker build -t llama-turbo . is run from the repo root
+    Then the image builds successfully
+    And the image contains: cmake, clang, python3, pybind11, ctest
+    And docker run llama-turbo ctest --test-dir build runs all unit tests
+    And no C++ toolchain installation is required on the host machine
+    And the Dockerfile lives at repo root and is maintained alongside CI
+
+  Scenario: Docker image used in ubuntu CI job
+    Given .github/workflows/ci.yml ubuntu-latest job
+    When the CI job runs
+    Then it builds and runs tests inside the Docker image
+    And the same Dockerfile used locally is used in CI
+    And local and CI results are identical for the same commit
+
   Scenario: Sprint 1 agent readiness check
     Given all previous Sprint 0 scenarios pass
     When the Sprint 1 agent starts
