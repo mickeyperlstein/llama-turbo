@@ -46,6 +46,20 @@ Feature: Sprint 4 — Benchmarking & Go/No-Go
     And the result is NO-GO otherwise
     And RECOMMENDATION.md is written with decision, data, and rationale
 
+  @experimental
+  Scenario: Attention without full decode — compressed-space inner product
+    Given TurboQuant's unbiased inner-product estimation property from the paper
+    And the JL projection preserves inner products in expectation
+    When attention scores Q·K^T are computed directly on compressed K codes
+    Then no full float16 K tensor is materialized during the attention operation
+    And attention scores are estimated as Q · (R^T · codebook_lookup(codes)) in one fused op
+    And V is still decompressed for the weighted sum (partial decode only)
+    And output quality is measured via HumanEval pass@1 against full-decode baseline
+    And latency is measured — hypothesis: memory bandwidth reduction compounds with compute reduction
+    And results are saved to benchmark/results/experimental_nodecode.json
+    And the scenario is marked LEAP if pass@1 delta < 3 points AND tok/s > turbo4 by >= 10%
+    And the scenario is marked VALIDATED_PATH if it fails — confirming full decode is necessary
+
   Scenario: Benchmark results published as CI artifact
     Given the self-hosted runner on Max Pro completes the benchmark suite
     When results are pushed to the benchmark/results/ directory
