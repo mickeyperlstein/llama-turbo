@@ -1,0 +1,91 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build (Docker)
+        run: |
+          apt-get update && apt-get install -y build-essential cmake clang python3 python3-pip pybind11-dev
+          cmake -B build -DLLAMA_METAL=OFF -DLLAMA_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release -j$(nproc)
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure --output-junit test-report.xml
+
+      - name: Package artifacts
+        run: |
+          tar -czf llama-turbo-linux-x86_64.tar.gz -C build/bin .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: |
+            llama-turbo-linux-x86_64.tar.gz
+            test-report.xml
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build (Metal)
+        run: |
+          cmake -B build -DLLAMA_METAL=ON -DLLAMA_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release -j$(sysctl -n hw.logicalcpu)
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Package artifacts
+        run: |
+          tar -czf llama-turbo-macos-arm64.tar.gz -C build/bin .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: llama-turbo-macos-arm64.tar.gz
+
+  release:
+    needs: [build-linux, build-macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-build
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos-build
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.sha }}
+          name: Build ${{ github.sha }}
+          body: |
+            Automated build from commit ${{ github.sha }}
+
+            ## Artifacts
+            - `llama-turbo-linux-x86_64.tar.gz` — Linux x86_64 binaries
+            - `llama-turbo-macos-arm64.tar.gz` — macOS ARM64 Metal build
+            - `test-report.xml` — ctest results
+          files: |
+            llama-turbo-linux-x86_64.tar.gz
+            llama-turbo-macos-arm64.tar.gz
+            test-report.xml
+          make_latest: true

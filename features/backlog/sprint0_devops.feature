@@ -87,6 +87,18 @@ Feature: Sprint 0 — DevOps & CI Foundation
     And the same Dockerfile used locally is used in CI
     And local and CI results are identical for the same commit
 
+  Scenario: GitHub Release assets on merge to main
+    Given a merge to main succeeds with green CI
+    When the release workflow triggers
+    Then a GitHub Release is created tagged with the commit SHA
+    And the following artifacts are attached:
+      | llama-turbo-linux-x86_64.tar.gz   | Linux build binaries + .so |
+      | llama-turbo-macos-arm64.tar.gz    | macOS Metal build binaries |
+      | benchmark-results.json            | Latest benchmark output    |
+      | test-report.xml                   | ctest XML results          |
+    And release notes list passing and failing scenarios from the sprint
+    And artifacts are downloadable without authentication
+
   Scenario: Sprint 1 agent readiness check
     Given all previous Sprint 0 scenarios pass
     When the Sprint 1 agent starts
