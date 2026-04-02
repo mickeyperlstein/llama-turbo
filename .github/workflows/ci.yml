@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-test-linux:
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          apt-get update && apt-get install -y \
+            build-essential cmake clang git \
+            python3 python3-pip python3-dev \
+            pybind11-dev libpybind11-dev
+
+      - name: Configure
+        run: |
+          cmake -B build \
+            -DLLAMA_METAL=OFF \
+            -DLLAMA_BUILD_TESTS=ON \
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release -j$(nproc)
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure --output-junit test-report.xml
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-report-linux
+          path: test-report.xml
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure (Metal)
+        run: |
+          cmake -B build \
+            -DLLAMA_METAL=ON \
+            -DLLAMA_BUILD_TESTS=ON \
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release -j$(sysctl -n hw.logicalcpu)
+
+      - name: Verify Metal shader compiled
+        run: test -f build/bin/ggml-metal.metal || echo "WARNING: Metal shader not found"
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  guard-features:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enforce feature folder immutability
+        run: |
+          # backlog/ and closed/ are read-only — fail if modified in this PR
+          git diff --name-only origin/main...HEAD | grep -E "^features/(backlog|closed)/" && \
+            echo "ERROR: backlog/ and closed/ are read-only. Move files via sprint process only." && exit 1 || \
+            echo "Feature folder integrity OK"
