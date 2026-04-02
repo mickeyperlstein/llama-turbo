@@ -12,6 +12,9 @@ jobs:
     container:
       image: ubuntu:22.04
     steps:
+      - name: Install git
+        run: apt-get update && apt-get install -y git
+
       - uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -60,7 +63,8 @@ jobs:
         run: cmake --build build --config Release -j$(sysctl -n hw.logicalcpu)
 
       - name: Verify Metal shader compiled
-        run: test -f build/bin/ggml-metal.metal || echo "WARNING: Metal shader not found"
+        run: |
+          test -f build/bin/ggml-metal.metal || echo "WARNING: Metal shader not found"
 
       - name: Test
         run: ctest --test-dir build --output-on-failure
