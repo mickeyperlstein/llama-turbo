@@ -48,9 +48,10 @@ jobs:
 
       - name: Configure (Metal)
         run: |
-          cmake -B build \
+          cmake -B build -S llama.cpp \
             -DGGML_METAL=ON \
             -DLLAMA_BUILD_TESTS=ON \
+            -DLLAMA_BUILD_EXAMPLES=ON \
             -DCMAKE_BUILD_TYPE=Release
 
       - name: Build

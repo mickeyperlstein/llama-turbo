@@ -47,9 +47,10 @@ sudo apt-get update && sudo apt-get install -y \
 
 # --- Configure cmake (no Metal on Linux) ---
 echo "Configuring..."
-cmake -B build \
+cmake -B build -S llama.cpp \
   -DGGML_METAL=OFF \
   -DLLAMA_BUILD_TESTS=ON \
+  -DLLAMA_BUILD_EXAMPLES=ON \
   -DCMAKE_BUILD_TYPE=Release
 
 # --- Build ---

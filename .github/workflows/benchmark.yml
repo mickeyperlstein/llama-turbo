@@ -29,16 +29,21 @@ jobs:
         with:
           submodules: recursive
 
-      # Build llama.cpp with Metal support
+      # Build llama.cpp with Metal support + examples (llama-cli, llama-completion)
       - name: Build (Metal)
         run: |
-          cmake -B build -DGGML_METAL=ON -DLLAMA_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release
+          cmake -B build -S llama.cpp \
+            -DGGML_METAL=ON \
+            -DLLAMA_BUILD_TESTS=ON \
+            -DLLAMA_BUILD_EXAMPLES=ON \
+            -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release -j$(sysctl -n hw.logicalcpu)
 
-      # Verify llama-cli was built
-      - name: Verify llama-cli exists
+      # Verify inference binary was built
+      - name: Verify build
         run: |
-          test -x build/bin/llama-cli || { echo "FAIL: llama-cli not built"; exit 1; }
+          test -x build/bin/llama-completion || test -x build/bin/llama-cli || { echo "FAIL: no inference binary built"; exit 1; }
+          ls -la build/bin/llama-completion build/bin/llama-cli 2>/dev/null || true
 
       # Run the smoke inference test — downloads tiny model, generates 10 tokens
       - name: Smoke inference test
