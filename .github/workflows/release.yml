@@ -28,7 +28,17 @@ jobs:
 
       - name: Package artifacts
         run: |
-          tar -czf llama-turbo-linux-x86_64.tar.gz -C build/bin .
+          mkdir -p staging
+          # Copy libraries
+          cp -a build/bin/*.so* staging/ 2>/dev/null || true
+          # Copy test executables
+          for f in build/bin/test-*; do
+            [ -x "$f" ] && cp "$f" staging/
+          done
+          # Copy CTestTestfile so ctest --test-dir works on the extracted archive
+          cp build/CTestTestfile.cmake staging/ 2>/dev/null || true
+          cp -r build/tests staging/tests 2>/dev/null || true
+          tar -czf llama-turbo-linux-x86_64.tar.gz -C staging .
 
       - uses: actions/upload-artifact@v4
         with:
@@ -50,16 +60,30 @@ jobs:
           cmake --build build --config Release -j$(sysctl -n hw.logicalcpu)
 
       - name: Run tests
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build --output-on-failure --output-junit test-report-macos.xml
 
       - name: Package artifacts
         run: |
-          tar -czf llama-turbo-macos-arm64.tar.gz -C build/bin .
+          mkdir -p staging
+          # Copy libraries
+          cp -a build/bin/*.dylib staging/ 2>/dev/null || true
+          cp -a build/bin/*.so staging/ 2>/dev/null || true
+          cp -a build/bin/*.metal staging/ 2>/dev/null || true
+          # Copy test executables
+          for f in build/bin/test-*; do
+            [ -x "$f" ] && cp "$f" staging/
+          done
+          # Copy CTestTestfile so ctest --test-dir works on the extracted archive
+          cp build/CTestTestfile.cmake staging/ 2>/dev/null || true
+          cp -r build/tests staging/tests 2>/dev/null || true
+          tar -czf llama-turbo-macos-arm64.tar.gz -C staging .
 
       - uses: actions/upload-artifact@v4
         with:
           name: macos-build
-          path: llama-turbo-macos-arm64.tar.gz
+          path: |
+            llama-turbo-macos-arm64.tar.gz
+            test-report-macos.xml
 
   release:
     needs: [build-linux, build-macos]
@@ -86,9 +110,11 @@ jobs:
             ## Artifacts
             - `llama-turbo-linux-x86_64.tar.gz` — Linux x86_64 binaries
             - `llama-turbo-macos-arm64.tar.gz` — macOS ARM64 Metal build
-            - `test-report.xml` — ctest results
+            - `test-report.xml` — ctest results (Linux)
+            - `test-report-macos.xml` — ctest results (macOS)
           files: |
             llama-turbo-linux-x86_64.tar.gz
             llama-turbo-macos-arm64.tar.gz
             test-report.xml
+            test-report-macos.xml
           make_latest: true
