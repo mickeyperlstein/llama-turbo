@@ -60,13 +60,14 @@ cmake --build build --config Release -j"$(nproc)"
 echo "Running tests..."
 ctest --test-dir build --output-on-failure --output-junit test-report.xml
 
-# --- Package: libs + test binaries + ctest config into tarball ---
+# --- Package: executables + libs + ctest config into tarball ---
 echo "Packaging artifacts..."
 mkdir -p staging
-cp -a build/bin/*.so* staging/ 2>/dev/null || true
-for f in build/bin/test-*; do
-  [ -x "$f" ] && cp "$f" staging/
+# Copy all executables (llama-cli, test-*, etc.)
+for f in build/bin/*; do
+  [ -x "$f" ] && [ ! -d "$f" ] && cp "$f" staging/
 done
+cp -a build/bin/*.so* staging/ 2>/dev/null || true
 cp build/CTestTestfile.cmake staging/ 2>/dev/null || true
 cp -r build/tests staging/tests 2>/dev/null || true
 tar -czf llama-turbo-linux-x86_64.tar.gz -C staging .

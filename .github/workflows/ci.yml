@@ -6,6 +6,7 @@
 #   build-macos       — macOS build+test with Metal (Apple Silicon, GitHub-hosted)
 #   lint-workflows    — validate all workflow YAML files
 #   guard-features    — prevent modifications to backlog/ and closed/ feature folders
+#   guard-thresholds  — block PRs that relax test thresholds without justification
 # =============================================================================
 name: CI
 
@@ -87,3 +88,63 @@ jobs:
           git diff --name-only origin/main...HEAD | grep -E "^features/(backlog|closed)/" && \
             echo "ERROR: backlog/ and closed/ are read-only. Move files via sprint process only." && exit 1 || \
             echo "Feature folder integrity OK"
+
+  # --- Guard: block threshold relaxation without justification ---
+  guard-thresholds:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for threshold relaxation
+        run: |
+          # Detect if thresholds.json was modified in this PR
+          if git diff origin/main...HEAD --name-only | grep -q "tests/thresholds.json"; then
+            echo "WARNING: tests/thresholds.json was modified in this PR"
+
+            # Check if any numeric value increased (relaxed)
+            python3 -c "
+          import json, subprocess, sys
+
+          old = subprocess.run(['git', 'show', 'origin/main:tests/thresholds.json'],
+                               capture_output=True, text=True)
+          if old.returncode != 0:
+              print('thresholds.json is new — no baseline to compare')
+              sys.exit(0)
+
+          old_data = json.loads(old.stdout)
+          new_data = json.load(open('tests/thresholds.json'))
+
+          def check(old_d, new_d, path=''):
+              for key in new_d:
+                  if key.startswith('_'):
+                      continue
+                  full = f'{path}.{key}' if path else key
+                  if isinstance(new_d[key], dict):
+                      check(old_d.get(key, {}), new_d[key], full)
+                  elif isinstance(new_d[key], (int, float)):
+                      old_val = old_d.get(key)
+                      if old_val is not None:
+                          # For 'min_*' thresholds, decreasing = relaxing
+                          # For 'max_*' thresholds, increasing = relaxing
+                          if key.startswith('min_') and new_d[key] < old_val:
+                              print(f'RELAXED: {full}: {old_val} -> {new_d[key]}')
+                              return True
+                          if key.startswith('max_') and new_d[key] > old_val:
+                              print(f'RELAXED: {full}: {old_val} -> {new_d[key]}')
+                              return True
+              return False
+
+          if check(old_data, new_data):
+              print()
+              print('ERROR: Threshold relaxation detected.')
+              print('Include benchmark data in the PR description to justify this change.')
+              sys.exit(1)
+          else:
+              print('Thresholds OK — no relaxation detected')
+          "
+          else
+            echo "thresholds.json unchanged — OK"
+          fi

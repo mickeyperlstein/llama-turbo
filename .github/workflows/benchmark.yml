@@ -1,0 +1,63 @@
+# =============================================================================
+# Benchmark — smoke inference test on Apple Silicon
+#
+# Triggered manually (workflow_dispatch) or on merge to main.
+# Runs on macos-latest (self-hosted apple-silicon runner when available).
+# Downloads a tiny model, generates 10 tokens, and outputs smoke.json.
+#
+# Per sprint0_devops.feature:
+#   - Runs a 10-token smoke generation with a small test model
+#   - Outputs benchmark/results/smoke.json artifact
+#   - Fails if the smoke generation produces no output
+# =============================================================================
+name: Benchmark
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  smoke-benchmark:
+    # Use self-hosted apple-silicon runner if available, fall back to macos-latest
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # Build llama.cpp with Metal support
+      - name: Build (Metal)
+        run: |
+          cmake -B build -DGGML_METAL=ON -DLLAMA_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release -j$(sysctl -n hw.logicalcpu)
+
+      # Verify llama-cli was built
+      - name: Verify llama-cli exists
+        run: |
+          test -x build/bin/llama-cli || { echo "FAIL: llama-cli not built"; exit 1; }
+
+      # Run the smoke inference test — downloads tiny model, generates 10 tokens
+      - name: Smoke inference test
+        run: ./scripts/smoke-test.sh --build-dir build/bin
+
+      # Validate smoke.json was produced and has "passed": true
+      - name: Validate smoke results
+        run: |
+          test -f benchmark/results/smoke.json || { echo "FAIL: smoke.json not produced"; exit 1; }
+          python3 -c "
+          import json, sys
+          data = json.load(open('benchmark/results/smoke.json'))
+          assert data['passed'], 'Smoke test did not pass'
+          assert data['output_words'] > 0, 'No output generated'
+          print(f'Smoke OK: {data[\"output_words\"]} words in {data[\"elapsed_ms\"]}ms')
+          " || { echo "FAIL: smoke.json validation failed"; exit 1; }
+
+      # Upload smoke.json as artifact
+      - uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmark/results/smoke.json

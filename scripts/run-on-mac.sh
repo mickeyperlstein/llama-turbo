@@ -83,4 +83,15 @@ else
   echo "Smoke tests passed."
 fi
 
+# --- Inference smoke test: generate 10 tokens with a tiny model ---
+if [ -x bin/llama-completion ] || [ -x bin/llama-cli ]; then
+  echo ""
+  echo "Running inference smoke test..."
+  ./scripts/smoke-test.sh --build-dir bin
+else
+  echo ""
+  echo "WARN: no inference binary in tarball — skipping inference smoke test"
+  echo "Hint: next release will include llama-completion"
+fi
+
 echo "Done."

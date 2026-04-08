@@ -1,0 +1,18 @@
+{
+  "test": "smoke-generation",
+  "model": "stories15M-q4_0.gguf",
+  "prompt": "Once upon a time",
+  "requested_tokens": 10,
+  "output_words": 12,
+  "output_preview": " Once upon a time, there was a little girl named Lily who",
+  "elapsed_ms": 656,
+  "binary": "build/bin/llama-completion",
+  "system": {
+    "os": "Darwin",
+    "arch": "arm64",
+    "total_ram_mb": 32768,
+    "available_ram_mb": 11418
+  },
+  "timestamp": "2026-04-08T01:42:47Z",
+  "passed": true
+}

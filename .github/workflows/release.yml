@@ -54,14 +54,13 @@ jobs:
       - name: Package artifacts
         run: |
           mkdir -p staging
+          # Copy CLI tools (llama-cli, etc.)
+          for f in build/bin/*; do
+            [ -x "$f" ] && [ ! -d "$f" ] && cp "$f" staging/
+          done
           # Copy libraries
           cp -a build/bin/*.dylib staging/ 2>/dev/null || true
-          cp -a build/bin/*.so staging/ 2>/dev/null || true
           cp -a build/bin/*.metal staging/ 2>/dev/null || true
-          # Copy test executables
-          for f in build/bin/test-*; do
-            [ -x "$f" ] && cp "$f" staging/
-          done
           # Copy CTestTestfile so ctest --test-dir works on the extracted archive
           cp build/CTestTestfile.cmake staging/ 2>/dev/null || true
           cp -r build/tests staging/tests 2>/dev/null || true

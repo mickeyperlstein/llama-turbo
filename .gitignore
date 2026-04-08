@@ -4,5 +4,8 @@ build/
 staging/
 *.tar.gz
 
+# Downloaded models (smoke-test.sh)
+models/
+
 # Self-hosted runner
 actions-runner/

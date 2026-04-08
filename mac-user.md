@@ -58,8 +58,30 @@ To run tests without rebuilding from source, download the latest release artifac
 ./scripts/run-on-mac.sh
 ```
 
-This downloads the pre-built macOS ARM64 binary from GitHub Releases and runs ctest.
-No CMake or C++ toolchain needed.
+This will:
+1. Download the pre-built macOS ARM64 binary from GitHub Releases
+2. Validate shared libraries are valid Mach-O binaries
+3. Run ctest if CTestTestfile.cmake is included (new builds)
+4. Run a 10-token inference smoke test with `stories15M-q4_0.gguf` (~15MB model, auto-downloaded)
+5. Output results to `benchmark/results/smoke.json`
+
+No CMake or C++ toolchain needed — just `gh` CLI.
+
+---
+
+## Testing Architecture
+
+| Layer | What it tests | Where |
+|-------|--------------|-------|
+| **ctest** | llama.cpp upstream unit tests (tokenizer, grammar, json, etc.) | CI: `ci.yml`, `release.yml` |
+| **Smoke inference** | 10-token generation with tiny model | `scripts/smoke-test.sh` |
+| **Benchmark** | Metal inference on Apple Silicon | `.github/workflows/benchmark.yml` |
+| **Threshold guard** | Blocks PRs that relax test thresholds | CI: `guard-thresholds` job |
+| **Feature guard** | Protects backlog/closed feature folders | CI: `guard-features` job |
+| **YAML lint** | Validates workflow file syntax | CI: `lint-workflows` job |
+
+Thresholds are defined in `tests/thresholds.json`. Relaxing a threshold requires
+benchmark data in the PR description and separate reviewer approval.
 
 ---
 
@@ -72,16 +94,22 @@ features/
   closed/    — completed sprints with reports (read-only)
 
 benchmark/
-  results/   — all benchmark JSON output
+  results/   — benchmark JSON output (smoke.json, etc.)
   datasets/  — pinned dataset references
 
+tests/
+  thresholds.json — baseline test thresholds (CI-enforced)
+
 scripts/
-  setup-mac.sh   — this setup script
-  run-on-mac.sh   — download and run latest build
+  setup-mac.sh    — Mac setup and runner registration
+  run-on-mac.sh   — download release and run all tests locally
+  run-on-linux.sh — build, test, package on Linux (used by CI)
+  smoke-test.sh   — 10-token inference smoke test
 
 .github/workflows/
-  ci.yml              — Linux (Docker) + macOS CI on every push
+  ci.yml              — Linux + macOS build/test on every push
   release.yml         — GitHub Release with build assets on merge to main
+  benchmark.yml       — smoke inference benchmark (workflow_dispatch + merge to main)
   sync-upstream.yml   — weekly PR to sync ggml-org/llama.cpp upstream
 ```
 

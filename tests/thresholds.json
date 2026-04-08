@@ -1,0 +1,12 @@
+{
+  "_comment": "Baseline test thresholds. Any relaxation requires benchmark data in the PR and separate reviewer approval. See features/current/sprint0_test_integrity.feature.",
+  "smoke_generation": {
+    "min_output_words": 1,
+    "max_elapsed_ms": 30000,
+    "min_compression_ratio": 2.0
+  },
+  "benchmark": {
+    "min_tokens_per_second": 1.0,
+    "max_memory_mb": 512
+  }
+}
