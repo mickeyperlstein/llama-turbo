@@ -1,3 +1,12 @@
+# =============================================================================
+# CI — runs on every push and PR to validate the build
+#
+# Jobs:
+#   build-test-linux  — Linux build+test via scripts/run-on-linux.sh (Ubuntu container)
+#   build-macos       — macOS build+test with Metal (Apple Silicon, GitHub-hosted)
+#   lint-workflows    — validate all workflow YAML files
+#   guard-features    — prevent modifications to backlog/ and closed/ feature folders
+# =============================================================================
 name: CI
 
 on:
@@ -6,7 +15,11 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true  # Opt in ahead of June 2026 forced migration
+
 jobs:
+  # --- Linux: CPU-only build inside Ubuntu 22.04 container ---
   build-test-linux:
     runs-on: ubuntu-latest
     container:
@@ -19,32 +32,17 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install dependencies
-        run: |
-          apt-get update && apt-get install -y \
-            build-essential cmake clang git \
-            python3 python3-pip python3-dev \
-            pybind11-dev libpybind11-dev
-
-      - name: Configure
-        run: |
-          cmake -B build \
-            -DLLAMA_METAL=OFF \
-            -DLLAMA_BUILD_TESTS=ON \
-            -DCMAKE_BUILD_TYPE=Release
-
-      - name: Build
-        run: cmake --build build --config Release -j$(nproc)
-
-      - name: Test
-        run: ctest --test-dir build --output-on-failure --output-junit test-report.xml
+      # All build/test/package logic lives in the script for reuse
+      - name: Build and test
+        run: ./scripts/run-on-linux.sh
 
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always()  # Upload test report even on failure
         with:
           name: test-report-linux
           path: test-report.xml
 
+  # --- macOS: Metal-enabled build on Apple Silicon ---
   build-macos:
     runs-on: macos-latest
     steps:
@@ -55,7 +53,7 @@ jobs:
       - name: Configure (Metal)
         run: |
           cmake -B build \
-            -DLLAMA_METAL=ON \
+            -DGGML_METAL=ON \
             -DLLAMA_BUILD_TESTS=ON \
             -DCMAKE_BUILD_TYPE=Release
 
@@ -69,6 +67,7 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure
 
+  # --- Lint: catch YAML syntax errors in workflow files ---
   lint-workflows:
     runs-on: ubuntu-latest
     steps:
@@ -81,6 +80,7 @@ jobs:
             python3 -c "import yaml, sys; yaml.safe_load(open('$f')); print(f'OK: $f')" || exit 1
           done
 
+  # --- Guard: protect feature folder structure ---
   guard-features:
     runs-on: ubuntu-latest
     steps:

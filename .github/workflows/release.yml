@@ -1,10 +1,22 @@
+# =============================================================================
+# Release — creates a GitHub Release with build artifacts on merge to main
+#
+# Jobs:
+#   build-linux  — Linux build via scripts/run-on-linux.sh, produces tarball + test report
+#   build-macos  — macOS Metal build, produces tarball + test report
+#   release      — collects artifacts and publishes a GitHub Release
+# =============================================================================
 name: Release
 
 on:
   push:
     branches: [main]
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true  # Opt in ahead of June 2026 forced migration
+
 jobs:
+  # --- Linux: CPU-only build inside Ubuntu 22.04 container ---
   build-linux:
     runs-on: ubuntu-latest
     container:
@@ -17,28 +29,9 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Build (Docker)
-        run: |
-          apt-get update && apt-get install -y build-essential cmake clang python3 python3-pip pybind11-dev
-          cmake -B build -DLLAMA_METAL=OFF -DLLAMA_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --config Release -j$(nproc)
-
-      - name: Run tests
-        run: ctest --test-dir build --output-on-failure --output-junit test-report.xml
-
-      - name: Package artifacts
-        run: |
-          mkdir -p staging
-          # Copy libraries
-          cp -a build/bin/*.so* staging/ 2>/dev/null || true
-          # Copy test executables
-          for f in build/bin/test-*; do
-            [ -x "$f" ] && cp "$f" staging/
-          done
-          # Copy CTestTestfile so ctest --test-dir works on the extracted archive
-          cp build/CTestTestfile.cmake staging/ 2>/dev/null || true
-          cp -r build/tests staging/tests 2>/dev/null || true
-          tar -czf llama-turbo-linux-x86_64.tar.gz -C staging .
+      # All build/test/package logic lives in the script for reuse
+      - name: Build, test, and package
+        run: ./scripts/run-on-linux.sh
 
       - uses: actions/upload-artifact@v4
         with:
@@ -47,6 +40,7 @@ jobs:
             llama-turbo-linux-x86_64.tar.gz
             test-report.xml
 
+  # --- macOS: Metal-enabled build on Apple Silicon ---
   build-macos:
     runs-on: macos-latest
     steps:
@@ -56,7 +50,7 @@ jobs:
 
       - name: Build (Metal)
         run: |
-          cmake -B build -DLLAMA_METAL=ON -DLLAMA_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release
+          cmake -B build -DGGML_METAL=ON -DLLAMA_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release -j$(sysctl -n hw.logicalcpu)
 
       - name: Run tests

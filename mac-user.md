@@ -55,7 +55,7 @@ After running the setup script, complete runner registration:
 To run tests without rebuilding from source, download the latest release artifact:
 
 ```bash
-./scripts/run-local.sh
+./scripts/run-on-mac.sh
 ```
 
 This downloads the pre-built macOS ARM64 binary from GitHub Releases and runs ctest.
@@ -77,7 +77,7 @@ benchmark/
 
 scripts/
   setup-mac.sh   — this setup script
-  run-local.sh   — download and run latest build
+  run-on-mac.sh   — download and run latest build
 
 .github/workflows/
   ci.yml              — Linux (Docker) + macOS CI on every push
