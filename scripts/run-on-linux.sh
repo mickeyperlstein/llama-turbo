@@ -18,18 +18,11 @@ set -e
 # Usage: ./scripts/run-on-linux.sh
 # =============================================================================
 
-# --- Detect if we're already inside a container or on a dev machine ---
-if [ -f /.dockerenv ] || grep -q docker /proc/1/cgroup 2>/dev/null; then
-  IN_CONTAINER=true
-else
-  IN_CONTAINER=false
-fi
-
-# If on a dev machine with Docker, delegate to the Dockerfile
-if [ "$IN_CONTAINER" = false ] && command -v docker &>/dev/null; then
+# --- Detect environment and install only what's missing ---
+if command -v docker &>/dev/null && [ ! -f /.dockerenv ] && ! grep -q docker /proc/1/cgroup 2>/dev/null; then
+  # Dev machine with Docker — delegate to Dockerfile for reproducibility
   echo "Docker detected — building via Dockerfile for reproducibility..."
   docker build -t llama-turbo .
-  # Run tests and copy artifacts out
   docker run --rm -v "$(pwd):/output" llama-turbo bash -c \
     'ctest --test-dir build --output-on-failure --output-junit /output/test-report.xml && \
      mkdir -p /tmp/staging && \
@@ -42,9 +35,12 @@ if [ "$IN_CONTAINER" = false ] && command -v docker &>/dev/null; then
   exit 0
 fi
 
-# --- Running inside a container (CI) — install deps directly ---
+# --- CI runner or container — install only missing deps ---
+# ubuntu-latest has cmake, clang, git, python3 pre-installed; just add pybind11
 echo "Installing dependencies..."
-apt-get update && apt-get install -y \
+sudo apt-get update && sudo apt-get install -y \
+  pybind11-dev libpython3-dev 2>/dev/null \
+  || apt-get update && apt-get install -y \
   build-essential cmake clang git \
   python3 python3-pip python3-dev \
   pybind11-dev libpython3-dev

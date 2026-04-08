@@ -16,15 +16,10 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true  # Opt in ahead of June 2026 forced migration
 
 jobs:
-  # --- Linux: CPU-only build inside Ubuntu 22.04 container ---
+  # --- Linux: CPU-only build on ubuntu-latest (no container needed) ---
   build-linux:
     runs-on: ubuntu-latest
-    container:
-      image: ubuntu:22.04
     steps:
-      - name: Install git
-        run: apt-get update && apt-get install -y git
-
       - uses: actions/checkout@v4
         with:
           submodules: recursive

@@ -2,7 +2,7 @@
 # CI — runs on every push and PR to validate the build
 #
 # Jobs:
-#   build-test-linux  — Linux build+test via scripts/run-on-linux.sh (Ubuntu container)
+#   build-test-linux  — Linux build+test via scripts/run-on-linux.sh
 #   build-macos       — macOS build+test with Metal (Apple Silicon, GitHub-hosted)
 #   lint-workflows    — validate all workflow YAML files
 #   guard-features    — prevent modifications to backlog/ and closed/ feature folders
@@ -19,15 +19,10 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true  # Opt in ahead of June 2026 forced migration
 
 jobs:
-  # --- Linux: CPU-only build inside Ubuntu 22.04 container ---
+  # --- Linux: CPU-only build on ubuntu-latest (no container needed) ---
   build-test-linux:
     runs-on: ubuntu-latest
-    container:
-      image: ubuntu:22.04
     steps:
-      - name: Install git
-        run: apt-get update && apt-get install -y git
-
       - uses: actions/checkout@v4
         with:
           submodules: recursive
