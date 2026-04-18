@@ -102,6 +102,10 @@ PROMPT="Once upon a time"
 
 START_TIME=$(python3 -c 'import time; print(int(time.time()*1e9))')
 
+# Fix library path for binaries built on CI with hardcoded rpath
+BIN_DIR=$(dirname "$LLAMA_BIN")
+export DYLD_LIBRARY_PATH="$BIN_DIR:$DYLD_LIBRARY_PATH"
+
 OUTPUT=$("$LLAMA_BIN" \
   -m "$MODEL_PATH" \
   -p "$PROMPT" \
