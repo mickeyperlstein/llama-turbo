@@ -130,6 +130,9 @@ echo ""
 echo "Running 100-token generation (this will be slow)..."
 PROMPT="Once upon a time, there was a beautiful kingdom where magic was real."
 
+# Set library path for CI-built binaries
+export DYLD_LIBRARY_PATH="$(pwd)/bin:$DYLD_LIBRARY_PATH"
+
 START_TIME=$(python3 -c 'import time; print(int(time.time()*1e9))')
 
 if [ -x bin/llama-completion ]; then
