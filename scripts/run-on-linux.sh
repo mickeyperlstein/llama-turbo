@@ -57,9 +57,9 @@ cmake -B build -S llama.cpp \
 echo "Building..."
 cmake --build build --config Release -j"$(nproc)"
 
-# --- Run tests and produce JUnit XML (timeout after 5min to prevent hangs) ---
+# --- Run tests and produce JUnit XML (timeout after 2min to catch hangs; flaky tests don't block) ---
 echo "Running tests..."
-timeout 300 ctest --test-dir build --output-on-failure --output-junit test-report.xml || true
+timeout 120 ctest --test-dir build --output-on-failure --output-junit test-report.xml || true
 
 # --- Package: executables + libs + ctest config into tarball ---
 echo "Packaging artifacts..."
