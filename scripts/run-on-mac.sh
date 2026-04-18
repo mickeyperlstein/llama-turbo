@@ -151,7 +151,12 @@ fi
 
 echo "Loaded context ($(echo "$CONTEXT" | wc -w) words)"
 echo ""
-echo "Running 200-token generation with 4K context (this will be slow)..."
+echo "Running baseline: Summarize the above text in 200 words..."
+
+# Append a real task to the context
+FULL_PROMPT="$CONTEXT
+
+Based on the text above, please provide a comprehensive summary in about 200 words:"
 
 # Set library path for CI-built binaries
 export DYLD_LIBRARY_PATH="$(pwd)/bin:$DYLD_LIBRARY_PATH"
@@ -159,9 +164,9 @@ export DYLD_LIBRARY_PATH="$(pwd)/bin:$DYLD_LIBRARY_PATH"
 START_TIME=$(python3 -c 'import time; print(int(time.time()*1e9))')
 
 if [ -x bin/llama-completion ]; then
-  OUTPUT=$(bin/llama-completion -m "$MODEL_PATH" -p "$CONTEXT" -n 200 -c 4096 2>/dev/null) || true
+  OUTPUT=$(bin/llama-completion -m "$MODEL_PATH" -p "$FULL_PROMPT" -n 200 -c 4096 2>/dev/null) || true
 else
-  OUTPUT=$(bin/llama-cli -m "$MODEL_PATH" -p "$CONTEXT" -n 200 -c 4096 2>/dev/null) || true
+  OUTPUT=$(bin/llama-cli -m "$MODEL_PATH" -p "$FULL_PROMPT" -n 200 -c 4096 2>/dev/null) || true
 fi
 
 END_TIME=$(python3 -c 'import time; print(int(time.time()*1e9))')
