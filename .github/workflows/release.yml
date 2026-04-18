@@ -117,7 +117,7 @@ jobs:
           files: |
             llama-turbo-linux-x86_64.tar.gz
             llama-turbo-macos-arm64.tar.gz
-            benchmark-results.json
+            benchmark/results/benchmark-results.json
             test-report.xml
             test-report-macos.xml
           make_latest: true
