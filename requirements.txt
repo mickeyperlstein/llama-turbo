@@ -1,0 +1,4 @@
+# TurboQuant+ Python reference implementation and test dependencies
+# Used by Sprint 1 agents for validating C++ against Python reference
+numpy>=1.24
+pytest>=7.0
