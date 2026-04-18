@@ -92,8 +92,11 @@ if [ -t 0 ]; then
 fi
 
 # Check memory
-AVAILABLE_MB=$(vm_stat | awk '/Pages free/ {gsub(/\./,""); print $3}' | xargs -I {} sh -c 'echo $(( {} * 16384 / 1024 / 1024 ))')
-echo "Available memory: ${AVAILABLE_MB}MB"
+PAGE_SIZE=$(pagesize)
+FREE_PAGES=$(vm_stat | awk '/Pages free/ {gsub(/\./,""); print $3}')
+INACTIVE_PAGES=$(vm_stat | awk '/Pages inactive/ {gsub(/\./,""); print $3}')
+AVAILABLE_MB=$(( (FREE_PAGES + INACTIVE_PAGES) * PAGE_SIZE / 1024 / 1024 ))
+echo "Available memory: ${AVAILABLE_MB}MB (free + inactive)"
 
 if [ "$AVAILABLE_MB" -lt 8192 ]; then
   echo "⚠️  Only ${AVAILABLE_MB}MB available, need 8192MB for 7B model"
