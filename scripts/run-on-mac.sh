@@ -135,12 +135,12 @@ try:
   ds = load_dataset('wikitext', 'wikitext-103-v1', split='train', trust_remote_code=True)
   # Get first sample with enough text
   for sample in ds:
-    if len(sample['text'].split()) > 500:
-      print(sample['text'][:2000])  # First ~2000 chars
+    if len(sample['text'].split()) > 1500:
+      print(sample['text'][:5000])  # First ~5000 chars (~1200 words)
       break
 except Exception as e:
   print(f"Error loading dataset: {e}. Using fallback text.")
-  print("The quick brown fox jumps over the lazy dog. " * 50)
+  print("The quick brown fox jumps over the lazy dog. " * 100)
 PYSCRIPT
 )
 
@@ -151,12 +151,19 @@ fi
 
 echo "Loaded context ($(echo "$CONTEXT" | wc -w) words)"
 echo ""
-echo "Running baseline: Summarize the above text in 200 words..."
+echo "Running stress baseline: Summarize + continue the analysis in 1000 words..."
+echo "(This will be slow without TurboQuant compression)"
 
 # Append a real task to the context
 FULL_PROMPT="$CONTEXT
 
-Based on the text above, please provide a comprehensive summary in about 200 words:"
+Based on the text above, please provide:
+1. A comprehensive summary (200 words)
+2. Key insights and analysis (300 words)
+3. Connections to broader themes (300 words)
+4. Critical evaluation (200 words)
+
+Total response: approximately 1000 words"
 
 # Set library path for CI-built binaries
 export DYLD_LIBRARY_PATH="$(pwd)/bin:$DYLD_LIBRARY_PATH"
@@ -164,9 +171,9 @@ export DYLD_LIBRARY_PATH="$(pwd)/bin:$DYLD_LIBRARY_PATH"
 START_TIME=$(python3 -c 'import time; print(int(time.time()*1e9))')
 
 if [ -x bin/llama-completion ]; then
-  OUTPUT=$(bin/llama-completion -m "$MODEL_PATH" -p "$FULL_PROMPT" -n 200 -c 4096 2>/dev/null) || true
+  OUTPUT=$(bin/llama-completion -m "$MODEL_PATH" -p "$FULL_PROMPT" -n 1000 -c 8192 2>/dev/null) || true
 else
-  OUTPUT=$(bin/llama-cli -m "$MODEL_PATH" -p "$FULL_PROMPT" -n 200 -c 4096 2>/dev/null) || true
+  OUTPUT=$(bin/llama-cli -m "$MODEL_PATH" -p "$FULL_PROMPT" -n 1000 -c 8192 2>/dev/null) || true
 fi
 
 END_TIME=$(python3 -c 'import time; print(int(time.time()*1e9))')
@@ -182,11 +189,11 @@ mkdir -p "$RESULTS_DIR"
 
 cat > "$RESULTS_DIR/baseline.json" <<EOF
 {
-  "test": "baseline-7b-with-context",
+  "test": "baseline-7b-stress",
   "model": "$MODEL_NAME",
-  "context_source": "HuggingFace wikitext-103-v1",
-  "context_size_tokens": 4096,
-  "requested_tokens": 200,
+  "context_source": "HuggingFace wikitext-103-v1 (~1200 words)",
+  "context_size_tokens": 8192,
+  "requested_tokens": 1000,
   "output_words": $TOKEN_COUNT,
   "elapsed_ms": $ELAPSED_MS,
   "tokens_per_sec": "$TOKENS_PER_SEC",
@@ -197,7 +204,7 @@ cat > "$RESULTS_DIR/baseline.json" <<EOF
     "available_ram_mb": $AVAILABLE_MB
   },
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "note": "Baseline WITHOUT TurboQuant. 4K context with real text creates large KV cache. TurboQuant should compress KV cache, improving tokens/sec and reducing memory footprint."
+  "note": "STRESS BASELINE WITHOUT TurboQuant. 8K context + 1000 tokens = massive KV cache growth. Memory-bound execution. TurboQuant compression should dramatically improve tokens/sec."
 }
 EOF
 
