@@ -4,11 +4,12 @@
 
 Optimizing large language model inference through learned KV cache quantization. Reducing memory bandwidth bottlenecks in transformer attention without sacrificing output quality.
 
+Architected and built by Mickey Perlstein using Claude Code agents.
 ---
 
 ## Overview
 
-llama-turbo implements **KV cache quantization** to accelerate inference on large language models. Instead of storing full-precision key-value pairs in attention, we learn to compress them dynamically, reducing memory pressure during token generation.
+llama-turbo uses an interface called kv_cache and we use it to swap out the default kv cache implementation with our own quantized version. This allows us to implement **KV cache quantization** to accelerate inference on large language models. Instead of storing full-precision key-value pairs in attention, we learn to compress them dynamically, reducing memory pressure during token generation.
 
 **Baseline Performance (Sprint 0):** 7.05 tokens/sec on Mistral-7B with 8K context window  
 **Target (Sprint 1+):** 2-3x improvement via KV cache compression
@@ -78,7 +79,9 @@ Downloads latest release, validates binaries, runs smoke test, then optionally r
 **Requirements:**
 - macOS or Linux
 - 10GB free RAM (for 7B baseline)
-- `gh` CLI (GitHub Actions integration)
+- `gh` CLI (GitHub Actions integration) - logged in
+- ollama installed and logged in
+- hf cli installed and logged in
 
 ### Verify Release
 
