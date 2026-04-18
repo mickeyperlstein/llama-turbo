@@ -70,12 +70,16 @@ jobs:
           cp -r build/tests staging/tests 2>/dev/null || true
           tar -czf llama-turbo-macos-arm64.tar.gz -C staging .
 
+      - name: Prepare benchmark results for release
+        run: cp benchmark/results/smoke.json benchmark/results/benchmark-results.json
+
       - uses: actions/upload-artifact@v4
         with:
           name: macos-build
           path: |
             llama-turbo-macos-arm64.tar.gz
             test-report-macos.xml
+            benchmark/results/benchmark-results.json
 
   release:
     needs: [build-linux, build-macos]
@@ -89,11 +93,11 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: macos-build
+          name: linux-build
 
       - uses: actions/download-artifact@v4
         with:
-          name: benchmark-results
+          name: macos-build
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
