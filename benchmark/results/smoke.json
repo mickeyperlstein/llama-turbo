@@ -5,14 +5,14 @@
   "requested_tokens": 10,
   "output_words": 11,
   "output_preview": " Once upon a time, there was a little girl named Lily.",
-  "elapsed_ms": 1075,
-  "binary": "build/bin/llama-completion",
+  "elapsed_ms": 2055,
+  "binary": "bin/llama-completion",
   "system": {
     "os": "Darwin",
     "arch": "arm64",
     "total_ram_mb": 32768,
-    "available_ram_mb": 12602
+    "available_ram_mb": 10249
   },
-  "timestamp": "2026-04-18T18:25:24Z",
+  "timestamp": "2026-04-18T20:36:13Z",
   "passed": true
 }

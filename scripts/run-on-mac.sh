@@ -135,12 +135,12 @@ try:
   ds = load_dataset('wikitext', 'wikitext-103-v1', split='train', trust_remote_code=True)
   # Get first sample with enough text
   for sample in ds:
-    if len(sample['text'].split()) > 1500:
-      print(sample['text'][:5000])  # First ~5000 chars (~1200 words)
+    if len(sample['text'].split()) > 3000:
+      print(sample['text'][:10000])  # First ~10000 chars (~2500 words)
       break
 except Exception as e:
   print(f"Error loading dataset: {e}. Using fallback text.")
-  print("The quick brown fox jumps over the lazy dog. " * 100)
+  print("The quick brown fox jumps over the lazy dog. " * 200)
 PYSCRIPT
 )
 
