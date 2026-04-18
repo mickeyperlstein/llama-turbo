@@ -91,6 +91,10 @@ jobs:
         with:
           name: macos-build
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: benchmark-results
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
@@ -102,11 +106,13 @@ jobs:
             ## Artifacts
             - `llama-turbo-linux-x86_64.tar.gz` — Linux x86_64 binaries
             - `llama-turbo-macos-arm64.tar.gz` — macOS ARM64 Metal build
+            - `benchmark-results.json` — Latest smoke inference benchmark
             - `test-report.xml` — ctest results (Linux)
             - `test-report-macos.xml` — ctest results (macOS)
           files: |
             llama-turbo-linux-x86_64.tar.gz
             llama-turbo-macos-arm64.tar.gz
+            benchmark-results.json
             test-report.xml
             test-report-macos.xml
           make_latest: true

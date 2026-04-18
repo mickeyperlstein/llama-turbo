@@ -61,8 +61,14 @@ jobs:
           print(f'Smoke OK: {data[\"output_words\"]} words in {data[\"elapsed_ms\"]}ms')
           " || { echo "FAIL: smoke.json validation failed"; exit 1; }
 
-      # Upload smoke.json as artifact
+      # Copy smoke results to benchmark-results (for release packaging)
+      - name: Export benchmark results
+        run: cp benchmark/results/smoke.json benchmark/results/benchmark-results.json
+
+      # Upload both smoke.json and benchmark-results.json as artifacts
       - uses: actions/upload-artifact@v4
         with:
           name: benchmark-results
-          path: benchmark/results/smoke.json
+          path: |
+            benchmark/results/smoke.json
+            benchmark/results/benchmark-results.json
