@@ -125,10 +125,33 @@ else
   echo "Model cached: $MODEL_PATH"
 fi
 
-# Run baseline inference
+# Run baseline inference with HuggingFace dataset as context
 echo ""
-echo "Running 100-token generation (this will be slow)..."
-PROMPT="Once upon a time, there was a beautiful kingdom where magic was real."
+echo "Loading context from HuggingFace datasets..."
+
+CONTEXT=$(python3 << 'PYSCRIPT'
+try:
+  from datasets import load_dataset
+  ds = load_dataset('wikitext', 'wikitext-103-v1', split='train', trust_remote_code=True)
+  # Get first sample with enough text
+  for sample in ds:
+    if len(sample['text'].split()) > 500:
+      print(sample['text'][:2000])  # First ~2000 chars
+      break
+except Exception as e:
+  print(f"Error loading dataset: {e}. Using fallback text.")
+  print("The quick brown fox jumps over the lazy dog. " * 50)
+PYSCRIPT
+)
+
+if [ -z "$CONTEXT" ]; then
+  echo "⚠️  Could not load HuggingFace dataset, using fallback text"
+  CONTEXT="Once upon a time in a land far away, there was a kingdom of great wonder and magic. The people lived in harmony with nature, and great scholars studied the arts and sciences. $(echo 'The library held many ancient books and scrolls with secrets of the universe. ' | awk '{for(i=1;i<=20;i++)print}' | tr '\n' ' ')"
+fi
+
+echo "Loaded context ($(echo "$CONTEXT" | wc -w) words)"
+echo ""
+echo "Running 200-token generation with 4K context (this will be slow)..."
 
 # Set library path for CI-built binaries
 export DYLD_LIBRARY_PATH="$(pwd)/bin:$DYLD_LIBRARY_PATH"
@@ -136,9 +159,9 @@ export DYLD_LIBRARY_PATH="$(pwd)/bin:$DYLD_LIBRARY_PATH"
 START_TIME=$(python3 -c 'import time; print(int(time.time()*1e9))')
 
 if [ -x bin/llama-completion ]; then
-  OUTPUT=$(bin/llama-completion -m "$MODEL_PATH" -p "$PROMPT" -n 100 -c 512 2>/dev/null) || true
+  OUTPUT=$(bin/llama-completion -m "$MODEL_PATH" -p "$CONTEXT" -n 200 -c 4096 2>/dev/null) || true
 else
-  OUTPUT=$(bin/llama-cli -m "$MODEL_PATH" -p "$PROMPT" -n 100 -c 512 2>/dev/null) || true
+  OUTPUT=$(bin/llama-cli -m "$MODEL_PATH" -p "$CONTEXT" -n 200 -c 4096 2>/dev/null) || true
 fi
 
 END_TIME=$(python3 -c 'import time; print(int(time.time()*1e9))')
@@ -146,7 +169,7 @@ END_TIME=$(python3 -c 'import time; print(int(time.time()*1e9))')
 # Calculate metrics
 TOKEN_COUNT=$(echo "$OUTPUT" | wc -w | tr -d ' ')
 ELAPSED_MS=$(( (END_TIME - START_TIME) / 1000000 ))
-TOKENS_PER_SEC=$(python3 -c "print(f'{100000 / $ELAPSED_MS:.2f}')" 2>/dev/null || echo "N/A")
+TOKENS_PER_SEC=$(python3 -c "print(f'{(200 * 1000.0) / $ELAPSED_MS:.2f}' if $ELAPSED_MS > 0 else 'N/A')" 2>/dev/null || echo "N/A")
 
 # Save baseline results
 RESULTS_DIR="benchmark/results"
@@ -154,14 +177,14 @@ mkdir -p "$RESULTS_DIR"
 
 cat > "$RESULTS_DIR/baseline.json" <<EOF
 {
-  "test": "baseline-7b",
+  "test": "baseline-7b-with-context",
   "model": "$MODEL_NAME",
-  "prompt_length": 18,
-  "requested_tokens": 100,
+  "context_source": "HuggingFace wikitext-103-v1",
+  "context_size_tokens": 4096,
+  "requested_tokens": 200,
   "output_words": $TOKEN_COUNT,
   "elapsed_ms": $ELAPSED_MS,
   "tokens_per_sec": "$TOKENS_PER_SEC",
-  "context_size": 512,
   "binary": "$([ -x bin/llama-completion ] && echo 'bin/llama-completion' || echo 'bin/llama-cli')",
   "system": {
     "os": "$OS",
@@ -169,7 +192,7 @@ cat > "$RESULTS_DIR/baseline.json" <<EOF
     "available_ram_mb": $AVAILABLE_MB
   },
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "note": "Baseline WITHOUT TurboQuant. This measurement is the 'before' state. TurboQuant should improve tokens/sec and reduce memory usage."
+  "note": "Baseline WITHOUT TurboQuant. 4K context with real text creates large KV cache. TurboQuant should compress KV cache, improving tokens/sec and reducing memory footprint."
 }
 EOF
 
