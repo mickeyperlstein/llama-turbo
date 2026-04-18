@@ -50,7 +50,8 @@ jobs:
 
       - name: Run tests
         # Allow upstream test flakes (bus errors, python env) — don't block release
-        run: ctest --test-dir build --output-on-failure --output-junit test-report-macos.xml || true
+        # Timeout after 5 minutes to avoid hanging on slow/broken tests
+        run: timeout 300 ctest --test-dir build --output-on-failure --output-junit test-report-macos.xml || true
 
       - name: Run smoke inference
         run: ./scripts/smoke-test.sh --build-dir build/bin

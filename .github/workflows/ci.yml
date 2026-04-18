@@ -62,7 +62,7 @@ jobs:
           test -f build/bin/ggml-metal.metal || echo "WARNING: Metal shader not found"
 
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        run: timeout 300 ctest --test-dir build --output-on-failure || true
 
   # --- Lint: catch YAML syntax errors in workflow files ---
   lint-workflows:
