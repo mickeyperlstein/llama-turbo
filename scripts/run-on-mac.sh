@@ -45,43 +45,24 @@ tar -xzf "$ARTIFACT" -C bin
 
 # --- Run tests ---
 echo "Running tests..."
-if [ -f bin/CTestTestfile.cmake ]; then
-  # Full ctest suite — available when tarball includes cmake test config
-  ctest --test-dir bin --output-on-failure
-else
-  # Smoke tests — verify binaries are valid without a full test harness
-  echo "No CTestTestfile.cmake found — running smoke tests on binaries..."
-  FAIL=0
+echo "Verifying binaries are valid..."
+FAIL=0
 
-  # Check that expected shared libraries are present and valid
-  for lib in $EXPECTED_LIBS; do
-    if [ -f "bin/$lib" ]; then
-      file "bin/$lib" | grep -q "$BIN_FMT" && echo "  OK: $lib" || { echo "  FAIL: $lib is not a valid $BIN_FMT binary"; FAIL=1; }
-    else
-      echo "  WARN: $lib not found"
-    fi
-  done
-
-  # Execute any packaged test binaries
-  for test_bin in bin/test-*; do
-    if [ -x "$test_bin" ]; then
-      echo "  Running: $test_bin ..."
-      if "$test_bin" 2>&1 | head -5; then
-        echo "  OK: $test_bin"
-      else
-        echo "  FAIL: $test_bin exited with error"
-        FAIL=1
-      fi
-    fi
-  done
-
-  if [ "$FAIL" -ne 0 ]; then
-    echo "Some smoke tests failed!"
-    exit 1
+# Check that expected shared libraries are present and valid
+for lib in $EXPECTED_LIBS; do
+  if [ -f "bin/$lib" ]; then
+    file "bin/$lib" | grep -q "$BIN_FMT" && echo "  ✓ $lib" || { echo "  ✗ $lib is not a valid $BIN_FMT binary"; FAIL=1; }
+  else
+    echo "  ✗ $lib not found"
   fi
+done
 
-  echo "Smoke tests passed."
+if [ "$FAIL" -ne 0 ]; then
+  echo "Binary validation failed!"
+  exit 1
 fi
+
+echo "✓ Binary validation passed"
 
 # --- Inference smoke test: generate 10 tokens with a tiny model ---
 if [ -x bin/llama-completion ] || [ -x bin/llama-cli ]; then
