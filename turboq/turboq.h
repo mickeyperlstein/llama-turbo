@@ -5,6 +5,9 @@
 
 typedef uint16_t ggml_half;
 
+#define QK_TBQ4_0 256
+#define QK_TBQ3_0 256
+
 typedef struct {
     ggml_half d;
     uint8_t qs[128];
