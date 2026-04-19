@@ -18,7 +18,7 @@ llama-turbo uses an interface called kv_cache and we use it to swap out the defa
 
 ## Key References
 
-- **KV Cache Quantization:** [Quantizing Large Language Models for Inference](https://arxiv.org/abs/2404.09668) — Google Research on efficient KV storage
+- **KV Cache Quantization:** [TurboQuant: Redefining AI efficiency with extreme compression](https://research.google/blog/turboquant-redefining-ai-efficiency-with-extreme-compression/) — Google Research: 6x KV cache compression with PolarQuant + QJL transform
 - **Base Framework:** [llama.cpp](https://github.com/ggerganov/llama.cpp) — Efficient inference in C++
 - **Model Distribution:** [Ollama](https://ollama.ai) — Simple LLM deployment
 - **Model Hub:** [Hugging Face](https://huggingface.co) — Model & dataset repository

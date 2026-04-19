@@ -4,15 +4,15 @@
   "context_source": "HuggingFace wikitext-103-v1 (~1200 words)",
   "context_size_tokens": 8192,
   "requested_tokens": 1000,
-  "output_words": 2677,
-  "elapsed_ms": 28361,
-  "tokens_per_sec": "7.05",
+  "output_words": 2484,
+  "elapsed_ms": 24813,
+  "tokens_per_sec": "8.06",
   "binary": "bin/llama-completion",
   "system": {
     "os": "Darwin",
     "arch": "arm64",
-    "available_ram_mb": 10040
+    "available_ram_mb": 12081
   },
-  "timestamp": "2026-04-18T20:36:42Z",
+  "timestamp": "2026-04-18T22:03:47Z",
   "note": "STRESS BASELINE WITHOUT TurboQuant. 8K context + 1000 tokens = massive KV cache growth. Memory-bound execution. TurboQuant compression should dramatically improve tokens/sec."
 }
