@@ -43,9 +43,9 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Build (Metal)
+      - name: Build (Metal + TurboQuant)
         run: |
-          cmake -B build -S llama.cpp -DGGML_METAL=ON -DLLAMA_BUILD_TESTS=ON -DLLAMA_BUILD_EXAMPLES=ON -DCMAKE_BUILD_TYPE=Release
+          cmake -B build -S llama.cpp -DGGML_METAL=ON -DLLAMA_BUILD_TESTS=ON -DLLAMA_BUILD_EXAMPLES=ON -DLLAMA_TURBOQ=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release -j$(sysctl -n hw.logicalcpu)
 
       - name: Run tests
@@ -82,8 +82,33 @@ jobs:
             test-report-macos.xml
             benchmark/results/benchmark-results.json
 
+  # --- Python extension: build turboq_ext and run statistical tests ---
+  test-python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: pip install pybind11 numpy pytest
+
+      - name: Build turboq_ext
+        run: |
+          cmake -B build_turboq_ext -S turboq \
+            -DPython3_EXECUTABLE=$(which python3) \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build build_turboq_ext -j$(nproc)
+
+      - name: Run statistical correctness tests
+        run: python3 -m pytest tests/test_turboq.py -v
+
   release:
-    needs: [build-linux, build-macos]
+    needs: [build-linux, build-macos, test-python]
     runs-on: ubuntu-latest
     permissions:
       contents: write

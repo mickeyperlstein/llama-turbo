@@ -1,0 +1,14 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug turboq encode/decode",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/debug_turboq.py",
+            "python": "${workspaceFolder}/.venv/bin/python3",
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ]
+}

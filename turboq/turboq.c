@@ -9,13 +9,43 @@
 #define QK_TBQ3_0 256
 
 static float f16_to_f32(ggml_half h) {
-    uint32_t w = ((uint32_t)h << 16) | 0x3c00;
-    return *(float*)&w;
+    uint32_t s   = (h >> 15) & 0x1u;
+    uint32_t exp = (h >> 10) & 0x1fu;
+    uint32_t m   = h & 0x3ffu;
+    uint32_t bits;
+    if (exp == 0x1f) {
+        bits = (s << 31) | 0x7f800000u | (m << 13);
+    } else if (exp == 0) {
+        if (m == 0) { bits = s << 31; }
+        else {
+            exp = 1;
+            while (!(m & 0x400u)) { m <<= 1; exp--; }
+            bits = (s << 31) | ((exp + 112u) << 23) | ((m & 0x3ffu) << 13);
+        }
+    } else {
+        bits = (s << 31) | ((exp + 112u) << 23) | (m << 13);
+    }
+    float f; memcpy(&f, &bits, 4); return f;
 }
 
 static ggml_half f32_to_f16(float x) {
-    uint32_t u = *(uint32_t*)&x;
-    uint16_t h = ((u >> 16) & 0x8000) | (((u >> 23) - 112) << 10) | ((u >> 13) & 0x3ff);
+    uint32_t u; memcpy(&u, &x, 4);
+    uint32_t s   = u >> 31;
+    uint32_t exp = (u >> 23) & 0xffu;
+    uint32_t m   = u & 0x7fffffu;
+    uint16_t h;
+    if (exp == 0xff) {
+        h = (uint16_t)((s << 15) | 0x7c00u | (m ? 0x200u : 0u));
+    } else if (exp <= 112) {
+        h = (uint16_t)(s << 15);
+    } else if (exp >= 143) {
+        h = (uint16_t)((s << 15) | 0x7c00u);
+    } else {
+        uint32_t he = exp - 112u;
+        uint32_t hm = (m + 0x1000u) >> 13;
+        if (hm & 0x400u) { he++; hm = 0; }
+        h = (uint16_t)((s << 15) | (he << 10) | (hm & 0x3ffu));
+    }
     return h;
 }
 
@@ -73,6 +103,10 @@ void turboq_encode_f16(const ggml_half *x, void *y, size_t n, int bit_width,
 
     hd3_rotate_forward(buf, n, layer_idx, head_idx);
 
+    // Scale to N(0,1) so Lloyd-Max centroids apply
+    float scale = sqrtf((float)n);
+    for (size_t i = 0; i < n; i++) buf[i] *= scale;
+
     if (bit_width == 4) {
         block_tbq4_0 *block = (block_tbq4_0 *)y;
         block->d = f32_to_f16(norm);
@@ -88,23 +122,22 @@ void turboq_encode_f16(const ggml_half *x, void *y, size_t n, int bit_width,
         block->d = f32_to_f16(norm);
         memset(block->qs, 0, sizeof(block->qs));
 
+        uint64_t bit_buf = 0;
+        int bits_in_buf = 0;
         size_t byte_idx = 0;
-        uint8_t byte_val = 0;
-        int bit_pos = 0;
 
         for (size_t i = 0; i < QK_TBQ3_0; i++) {
             int idx = find_nearest_centroid_3bit(buf[i], TURBOQ_CENTROIDS_3BIT);
-            byte_val |= (idx & 0x7) << bit_pos;
-            bit_pos += 3;
-            if (bit_pos >= 8) {
-                block->qs[byte_idx++] = byte_val;
-                byte_val = 0;
-                bit_pos = 0;
+            bit_buf |= (uint64_t)(idx & 0x7) << bits_in_buf;
+            bits_in_buf += 3;
+            if (bits_in_buf >= 8) {
+                block->qs[byte_idx++] = (uint8_t)(bit_buf & 0xff);
+                bit_buf >>= 8;
+                bits_in_buf -= 8;
             }
         }
-        if (bit_pos > 0) {
-            block->qs[byte_idx] = byte_val;
-        }
+        if (bits_in_buf > 0 && byte_idx < 96)
+            block->qs[byte_idx] = (uint8_t)(bit_buf & 0xff);
     }
 
     free(buf);
@@ -134,6 +167,10 @@ void turboq_decode_f16(const void *x, ggml_half *y, size_t n, int bit_width,
             buf[i + 1] = TURBOQ_CENTROIDS_4BIT[idx1];
         }
 
+        // Undo the sqrt(n) scale applied before quantization
+        float inv_scale = 1.0f / sqrtf((float)n);
+        for (size_t i = 0; i < n; i++) buf[i] *= inv_scale;
+
         hd3_rotate_inverse(buf, n, layer_idx, head_idx);
 
         for (size_t i = 0; i < n; i++) {
@@ -143,20 +180,23 @@ void turboq_decode_f16(const void *x, ggml_half *y, size_t n, int bit_width,
         const block_tbq3_0 *block = (const block_tbq3_0 *)x;
         float norm = f16_to_f32(block->d);
 
+        uint64_t bit_buf = 0;
+        int bits_in_buf = 0;
         size_t byte_idx = 0;
-        uint8_t byte_val = block->qs[0];
-        int bit_pos = 0;
 
         for (size_t i = 0; i < QK_TBQ3_0; i++) {
-            int idx = (byte_val >> bit_pos) & 0x7;
-            buf[i] = TURBOQ_CENTROIDS_3BIT[idx];
-            bit_pos += 3;
-            if (bit_pos >= 8) {
-                byte_idx++;
-                byte_val = (byte_idx < 96) ? block->qs[byte_idx] : 0;
-                bit_pos = 0;
+            while (bits_in_buf < 3 && byte_idx < 96) {
+                bit_buf |= (uint64_t)block->qs[byte_idx++] << bits_in_buf;
+                bits_in_buf += 8;
             }
+            buf[i] = TURBOQ_CENTROIDS_3BIT[bit_buf & 0x7];
+            bit_buf >>= 3;
+            bits_in_buf -= 3;
         }
+
+        // Undo the sqrt(n) scale applied before quantization
+        float inv_scale = 1.0f / sqrtf((float)n);
+        for (size_t i = 0; i < n; i++) buf[i] *= inv_scale;
 
         hd3_rotate_inverse(buf, n, layer_idx, head_idx);
 
